@@ -250,7 +250,7 @@ class SerpApiWebSearchTool:
     def search_bing_copilot(
         self,
         query: str,
-        timeout_seconds: int = 45,
+        timeout_seconds: int = 100,
     ) -> str:
         if not query.strip():
             return "ERROR: Query cannot be empty"
@@ -355,7 +355,7 @@ def build_bing_copilot_search_tool(config: ToolsConfig) -> StructuredTool:
 
     def _search_bing_copilot(
         query: str,
-        timeout_seconds: int = 45,
+        timeout_seconds: int = 100,
     ) -> str:
         """Search Bing Copilot via SerpAPI and return summary + references.
 

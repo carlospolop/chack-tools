@@ -111,7 +111,7 @@ class WebSearcherAgentTool:
         @function_tool(name_override="search_bing_copilot")
         def search_bing_copilot(
             query: str,
-            timeout_seconds: int = 45,
+            timeout_seconds: int = 100,
         ) -> str:
             return web.search_bing_copilot(
                 query=query,
