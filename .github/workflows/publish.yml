@@ -29,13 +29,32 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           python - <<'PY'
-          from pathlib import Path
+          import os
           import re
-          p = Path('pyproject.toml')
-          text = p.read_text(encoding='utf-8')
-          text = re.sub(r'(?m)^version\s*=\s*"[^"]+"$', f'version = "0.1.{__import__("os").environ["RUN_NUMBER"]}"', text)
-          p.write_text(text, encoding='utf-8')
-          print('Updated version in pyproject.toml')
+          from pathlib import Path
+
+          run_number = os.environ["RUN_NUMBER"]
+          version = f"0.1.{run_number}"
+
+          pyproject = Path("pyproject.toml")
+          pyproject_text = pyproject.read_text(encoding="utf-8")
+          pyproject_text = re.sub(
+              r'(?m)^version\s*=\s*"[^"]+"$',
+              f'version = "{version}"',
+              pyproject_text,
+          )
+          pyproject.write_text(pyproject_text, encoding="utf-8")
+
+          setup_py = Path("setup.py")
+          setup_text = setup_py.read_text(encoding="utf-8")
+          setup_text = re.sub(
+              r"(?m)^\s*version='[^']+'\s*,",
+              f"    version='{version}',",
+              setup_text,
+          )
+          setup_py.write_text(setup_text, encoding="utf-8")
+
+          print(f"Updated package version to {version}")
           PY
 
       - name: Build distributions
