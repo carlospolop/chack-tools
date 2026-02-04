@@ -25,7 +25,4 @@ tools = Toolset(ToolsConfig(), tool_profile="telegram").tools
 
 ## Publishing
 
-Publishing to PyPI is automated by GitHub Actions on pushes to `master`.
-Configure these repo secrets:
-
-- `PYPI_API_TOKEN`: PyPI API token for this package.
+Package distribution can be consumed directly from GitHub in dependencies (no PyPI publish required).
