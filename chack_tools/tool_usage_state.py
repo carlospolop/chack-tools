@@ -10,6 +10,10 @@ _ACTIVE_USAGE_SESSION_ID: contextvars.ContextVar[str | None] = contextvars.Conte
     "chack_tool_usage_session_id",
     default=None,
 )
+_ACTIVE_MAX_TOOLS_USED: contextvars.ContextVar[int | None] = contextvars.ContextVar(
+    "chack_tool_usage_max_tools",
+    default=None,
+)
 
 
 class ToolUsageStore:
@@ -80,3 +84,31 @@ def set_active_usage_session(session_id: str | None):
 
 def reset_active_usage_session(token) -> None:
     _ACTIVE_USAGE_SESSION_ID.reset(token)
+
+
+def set_active_max_tools_used(value: int | None):
+    if value is None:
+        return _ACTIVE_MAX_TOOLS_USED.set(None)
+    return _ACTIVE_MAX_TOOLS_USED.set(max(0, int(value)))
+
+
+def reset_active_max_tools_used(token) -> None:
+    _ACTIVE_MAX_TOOLS_USED.reset(token)
+
+
+def current_usage_session_id() -> str | None:
+    return _ACTIVE_USAGE_SESSION_ID.get()
+
+
+def current_max_tools_used() -> int:
+    return int(_ACTIVE_MAX_TOOLS_USED.get() or 0)
+
+
+def non_task_tool_count(counter: Counter[str]) -> int:
+    total = 0
+    for tool_name, count in counter.items():
+        name = (tool_name or "").lower()
+        if name.startswith("task_list"):
+            continue
+        total += int(count or 0)
+    return total

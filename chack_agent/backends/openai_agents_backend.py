@@ -15,6 +15,12 @@ from ..config import ChackConfig
 from chack.conversation_memory import build_memory_summary, format_messages
 from chack_tools.agents_toolset import AgentsToolset
 from chack_tools.task_list_state import current_run_label, current_session_id
+from chack_tools.tool_usage_state import (
+    STORE as TOOL_USAGE_STORE,
+    current_max_tools_used,
+    current_usage_session_id,
+    non_task_tool_count,
+)
 
 
 _FIRST_TOOL_LOCK = threading.Lock()
@@ -125,6 +131,28 @@ def _require_task_list_init_first(data) -> ToolGuardrailFunctionOutput:
         return ToolGuardrailFunctionOutput.reject_content(reminder)
 
     _open_first_tool_gate()
+    return ToolGuardrailFunctionOutput.allow()
+
+
+@tool_input_guardrail(name="respect_max_tools_used")
+def _respect_max_tools_used(data) -> ToolGuardrailFunctionOutput:
+    tool_name = str(getattr(data.context, "tool_name", "") or "").strip().lower()
+    if tool_name.startswith("task_list"):
+        return ToolGuardrailFunctionOutput.allow()
+
+    max_tools_used = current_max_tools_used()
+    if max_tools_used <= 0:
+        return ToolGuardrailFunctionOutput.allow()
+
+    session_id = current_usage_session_id()
+    if not session_id:
+        return ToolGuardrailFunctionOutput.allow()
+
+    used = non_task_tool_count(TOOL_USAGE_STORE.snapshot(session_id))
+    if used >= max_tools_used:
+        return ToolGuardrailFunctionOutput.reject_content(
+            "Tool budget reached. Please use the information already gathered and finish the execution."
+        )
     return ToolGuardrailFunctionOutput.allow()
 
 

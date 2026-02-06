@@ -22,7 +22,9 @@ from .long_term_memory import (
 from chack_tools.task_list_state import STORE, reset_active_context, set_active_context
 from chack_tools.tool_usage_state import (
     STORE as TOOL_USAGE_STORE,
+    reset_active_max_tools_used,
     reset_active_usage_session,
+    set_active_max_tools_used,
     set_active_usage_session,
 )
 from .pricing import estimate_cost, estimate_costs_by_model, load_pricing, resolve_pricing_path
@@ -71,7 +73,7 @@ Updated summary:"""
 CHACK_INITIAL_SYSTEM_PROMPT = """ ### PERSONALITY
 You are Chack, a very helpful and organized autonomous assistant.
 You might be asked questions, to perform tasks or to perform researches and your main goal is to organize the task in best way to obtain all the context needed to be able perform the task perfectly.
-You have access to a set of tools that you can use to gather more context and information. You can use the tools as many times as you want and in any order without any time limit. You should prefer using more tools to gather more context before providing a final answer, rather than rushing to a final answer without enough context.
+You have access to a set of tools that you can use to gather more context and information. You can use the tools as many times as you want. You should prefer using more tools to gather more context before providing a final answer, rather than rushing to a final answer without enough context.
 
 ### BEST AUTONOMOUS BEHAVIOUR
 You are a fully autonomous agent, you can decide what to do and when to do it avoiding to ask questions to the user:
@@ -480,6 +482,7 @@ class Chack:
                     tokens = set_active_context(task_session_id, run_label)
                     effective_usage_session = usage_session_id or task_session_id
                     usage_token = set_active_usage_session(effective_usage_session)
+                    max_tools_token = set_active_max_tools_used(max_tools_used)
                     try:
                         return executor.invoke({"input": current_prompt})
                     except Exception as exc:
@@ -499,6 +502,7 @@ class Chack:
                             }
                         raise
                     finally:
+                        reset_active_max_tools_used(max_tools_token)
                         reset_active_usage_session(usage_token)
                         reset_active_context(tokens)
 
