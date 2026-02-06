@@ -155,7 +155,7 @@ class ScientificResearchAgentTool:
         result = chack.run(
             session_id=f"scientific:{int(time.time() * 1000)}",
             text=prompt,
-            min_tools_used_override=1,
+            min_tools_used_override=0,
             enable_self_critique=None,
             require_task_list_init_first=True,
             tools_override=tools,
