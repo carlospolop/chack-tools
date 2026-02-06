@@ -475,6 +475,22 @@ class Chack:
                     usage_token = set_active_usage_session(effective_usage_session)
                     try:
                         return executor.invoke({"input": current_prompt})
+                    except Exception as exc:
+                        try:
+                            from agents.exceptions import MaxTurnsExceeded
+                        except Exception:
+                            MaxTurnsExceeded = None
+                        if MaxTurnsExceeded is not None and isinstance(exc, MaxTurnsExceeded):
+                            return {
+                                "output": (
+                                    "I reached the maximum number of turns for this run. "
+                                    "Please try again or increase max_turns in the config if you need longer responses."
+                                ),
+                                "intermediate_steps": [],
+                                "raw_result": None,
+                                "error": "max_turns_exceeded",
+                            }
+                        raise
                     finally:
                         reset_active_usage_session(usage_token)
                         reset_active_context(tokens)
@@ -487,6 +503,10 @@ class Chack:
                 prompt_total += attempt_prompt
                 completion_total += attempt_completion
                 cached_total += attempt_cached
+
+                if result.get("error") == "max_turns_exceeded":
+                    all_steps.extend(result.get("intermediate_steps", []))
+                    break
 
                 current_steps = result.get("intermediate_steps", [])
                 all_steps.extend(current_steps)
