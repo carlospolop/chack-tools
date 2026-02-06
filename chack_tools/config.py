@@ -42,7 +42,12 @@ class ToolsConfig:
     websearcher_google_web_enabled: bool = False
     websearcher_bing_web_enabled: bool = False
     websearcher_google_ai_mode_enabled: bool = False
-    websearcher_bing_copilot_enabled: bool = False
+
+    tester_enabled: bool = False
+    tester_exec_enabled: bool = False
+    tester_brave_enabled: bool = False
+    tester_google_web_enabled: bool = False
+    tester_agent: dict = field(default_factory=dict)
 
     social_network_forum_search_enabled: bool = False
     social_network_linkedin_enabled: bool = False

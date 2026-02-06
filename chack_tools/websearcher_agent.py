@@ -8,8 +8,7 @@ from .serpapi_web_search import (
     SerpApiWebSearchTool,
     get_google_web_search_tool,
     get_bing_web_search_tool,
-    get_google_ai_mode_tool,
-    get_bing_copilot_tool
+    get_google_ai_mode_tool
 )
 from .serpapi_keys import has_serpapi_keys
 from .task_list_tool import TaskListTool, get_task_list_tool
@@ -66,29 +65,26 @@ class WebSearcherAgentTool:
         task_helper = TaskListTool(self.config)
         
         tools = [get_task_list_tool(task_helper)]
-        if self.config.websearcher_brave_enabled and self.config.brave_enabled:
+        if self.config.websearcher_brave_enabled:
             tools.append(get_brave_search_tool(self.brave))
 
         has_serpapi = has_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
-        if has_serpapi and self.config.websearcher_google_web_enabled and self.config.serpapi_google_web_enabled:
+        if has_serpapi and self.config.websearcher_google_web_enabled:
             tools.append(get_google_web_search_tool(self.web))
-        if has_serpapi and self.config.websearcher_bing_web_enabled and self.config.serpapi_bing_web_enabled:
+        if has_serpapi and self.config.websearcher_bing_web_enabled:
             tools.append(get_bing_web_search_tool(self.web))
         if has_serpapi and self.config.websearcher_google_ai_mode_enabled:
             tools.append(get_google_ai_mode_tool(self.web))
-        if has_serpapi and self.config.websearcher_bing_copilot_enabled:
-            tools.append(get_bing_copilot_tool(self.web))
         return tools
 
     def run(self, prompt: str) -> str:
         has_brave = bool(os.environ.get("BRAVE_API_KEY", "").strip())
         has_serpapi = has_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
-        brave_allowed = self.config.websearcher_brave_enabled and self.config.brave_enabled
+        brave_allowed = self.config.websearcher_brave_enabled
         serpapi_allowed = has_serpapi and (
             self.config.websearcher_google_web_enabled
             or self.config.websearcher_bing_web_enabled
             or self.config.websearcher_google_ai_mode_enabled
-            or self.config.websearcher_bing_copilot_enabled
         )
         if not (brave_allowed and has_brave) and not serpapi_allowed:
             return "ERROR: Neither Brave API key nor SerpAPI key is configured."
@@ -114,7 +110,6 @@ class WebSearcherAgentTool:
                 "websearcher_google_web_enabled": True,
                 "websearcher_bing_web_enabled": True,
                 "websearcher_google_ai_mode_enabled": True,
-                "websearcher_bing_copilot_enabled": True,
                 "brave_enabled": True,
                 "serpapi_google_web_enabled": True,
                 "serpapi_bing_web_enabled": True,

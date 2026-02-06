@@ -13,6 +13,7 @@ from .serpapi_web_search import (
 from .social_network_agent import SocialNetworkAgentTool, get_social_network_research_tool
 from .task_list_tool import TaskListTool, get_task_list_tool
 from .websearcher_agent import WebSearcherAgentTool, get_websearcher_research_tool
+from .tester_agent import TesterAgentTool, get_tester_agent_tool
 from .serpapi_keys import has_serpapi_keys
 
 
@@ -25,9 +26,11 @@ class AgentsToolset:
         social_network_model: str = "",
         scientific_model: str = "",
         websearcher_model: str = "",
+        tester_model: str = "",
         social_network_max_turns: int = 30,
         scientific_max_turns: int = 30,
         websearcher_max_turns: int = 30,
+        tester_max_turns: int = 30,
     ):
         self.config = config
         self.tool_profile = tool_profile
@@ -35,9 +38,11 @@ class AgentsToolset:
         self.social_network_model = social_network_model
         self.scientific_model = scientific_model
         self.websearcher_model = websearcher_model
+        self.tester_model = tester_model
         self.social_network_max_turns = social_network_max_turns
         self.scientific_max_turns = scientific_max_turns
         self.websearcher_max_turns = websearcher_max_turns
+        self.tester_max_turns = tester_max_turns
         self.tools = self._build_tools()
 
     def _build_tools(self):
@@ -77,7 +82,6 @@ class AgentsToolset:
                         and self.config.serpapi_bing_web_enabled
                     )
                     or self.config.websearcher_google_ai_mode_enabled
-                    or self.config.websearcher_bing_copilot_enabled
                 )
             )
         )
@@ -89,6 +93,24 @@ class AgentsToolset:
                 max_turns=self.websearcher_max_turns,
             )
             tools.append(get_websearcher_research_tool(websearcher_helper))
+
+        tester_has_tools = (
+            self.config.tester_exec_enabled
+            or (self.config.tester_brave_enabled and self.config.brave_enabled)
+            or (
+                has_serpapi
+                and self.config.tester_google_web_enabled
+                and self.config.serpapi_google_web_enabled
+            )
+        )
+        if self.config.tester_enabled and tester_has_tools:
+            tester_helper = TesterAgentTool(
+                self.config,
+                model_name=self.tester_model,
+                fallback_model=self.default_model,
+                max_turns=self.tester_max_turns,
+            )
+            tools.append(get_tester_agent_tool(tester_helper))
 
         include_forumscout = self.tool_profile in {"all", "telegram"}
         social_forumscout_tools = any(

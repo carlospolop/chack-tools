@@ -94,10 +94,11 @@ class ScientificResearchAgentTool:
             tools.append(get_youtube_video_search_tool(search))
         if self.config.scientific_youtube_transcript_enabled:
             tools.append(get_youtube_transcript_tool(search))
-        if self.config.scientific_pdf_text_enabled and self.config.pdf_text_enabled:
+        if self.config.scientific_pdf_text_enabled:
             tools.append(get_pdf_text_tool(pdf))
-        if self.config.scientific_exec_enabled and self.config.exec_enabled:
+        if self.config.scientific_exec_enabled:
             exec_helper = ExecTool(self.config)
+            tools.append(get_exec_tool(exec_helper))
             tools.append(get_exec_tool(exec_helper))
         return tools
 
