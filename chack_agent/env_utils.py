@@ -1,7 +1,6 @@
+import base64
 import os
 from typing import Optional
-
-import yaml
 
 
 def _resolve_path(base_dir: str, value: str) -> str:
@@ -51,6 +50,17 @@ def _write_aws_profiles(profiles: dict) -> Optional[str]:
     return aws_dir
 
 
+def _ensure_aws_dir() -> Optional[str]:
+    home_dir = os.path.expanduser("~")
+    aws_dir = os.path.join(home_dir, ".aws")
+    try:
+        os.makedirs(aws_dir, exist_ok=True)
+    except OSError:
+        aws_dir = os.path.join("/tmp", "chack-aws")
+        os.makedirs(aws_dir, exist_ok=True)
+    return aws_dir
+
+
 def export_env(config, config_path: str) -> None:
     base_dir = os.path.dirname(os.path.abspath(config_path))
     for key, value in (config.env or {}).items():
@@ -58,17 +68,19 @@ def export_env(config, config_path: str) -> None:
             continue
         os.environ[str(key)] = str(value)
 
-    aws_profiles_raw = os.environ.get("CHACK_AWS_PROFILES", "").strip()
-    if aws_profiles_raw:
+    aws_profiles_b64 = os.environ.get("CHACK_AWS_PROFILES", "").strip()
+    if aws_profiles_b64:
         try:
-            parsed_profiles = yaml.safe_load(aws_profiles_raw) or {}
-        except yaml.YAMLError:
-            parsed_profiles = {}
-        if isinstance(parsed_profiles, dict):
-            aws_dir = _write_aws_profiles(parsed_profiles)
+            decoded = base64.b64decode(aws_profiles_b64).decode("utf-8")
+        except Exception:
+            decoded = ""
+        if decoded.strip():
+            aws_dir = _ensure_aws_dir()
             if aws_dir:
-                os.environ["AWS_SHARED_CREDENTIALS_FILE"] = os.path.join(aws_dir, "credentials")
-                os.environ["AWS_CONFIG_FILE"] = os.path.join(aws_dir, "config")
+                creds_path = os.path.join(aws_dir, "credentials")
+                with open(creds_path, "w", encoding="utf-8") as handle:
+                    handle.write(decoded.strip() + "\n")
+                os.environ["AWS_SHARED_CREDENTIALS_FILE"] = creds_path
 
     gcp_credentials_path = os.environ.get("GCP_CREDENTIALS_PATH", "").strip()
     if gcp_credentials_path and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
