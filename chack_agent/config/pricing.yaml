@@ -1,0 +1,41 @@
+models:
+  gpt-5.2:
+    input: 1.75
+    cached_input: 0.175
+    output: 14.00
+  gpt-5.1:
+    input: 1.25
+    cached_input: 0.125
+    output: 10.00
+  gpt-5:
+    input: 1.25
+    cached_input: 0.125
+    output: 10.00
+  gpt-5-mini:
+    input: 0.25
+    cached_input: 0.025
+    output: 2.00
+  gpt-5-nano:
+    input: 0.05
+    cached_input: 0.005
+    output: 0.40
+  gpt-5.2-chat-latest:
+    input: 1.75
+    cached_input: 0.175
+    output: 14.00
+  gpt-5.1-chat-latest:
+    input: 1.25
+    cached_input: 0.125
+    output: 10.00
+  gpt-5-chat-latest:
+    input: 1.25
+    cached_input: 0.125
+    output: 10.00
+  gpt-5.2-codex:
+    input: 1.75
+    cached_input: 0.175
+    output: 14.00
+  gpt-5.1-codex-max:
+    input: 1.25
+    cached_input: 0.125
+    output: 10.00

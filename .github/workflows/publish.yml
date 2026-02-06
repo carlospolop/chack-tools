@@ -1,4 +1,4 @@
-name: Build chack-tools
+name: Build chack-agent
 
 on:
   push:

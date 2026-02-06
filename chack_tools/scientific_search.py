@@ -1,10 +1,14 @@
+import os
 import re
 import time
 from typing import Any, Optional
 
-import requests
-from langchain_core.tools import StructuredTool
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
 
+import requests
 from .config import ToolsConfig
 from .serpapi_keys import is_serpapi_rate_limited, shuffled_serpapi_keys
 
@@ -39,11 +43,11 @@ class ScientificSearchTool:
         return _clamp(_coerce_int(requested, cfg_limit), 1, 50)
 
     def _serpapi_key(self) -> str:
-        keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         return keys[0] if keys else ""
 
     def _serpapi_request(self, params: dict[str, Any], timeout_seconds: int = 20) -> Any:
-        api_keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        api_keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         if not api_keys:
             return "ERROR: SerpAPI key not configured."
         for idx, api_key in enumerate(api_keys):
@@ -601,10 +605,12 @@ class ScientificSearchTool:
         return "\n".join(lines)
 
 
-def build_arxiv_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ScientificSearchTool(config)
+def get_arxiv_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_arxiv(query: str, max_results: Optional[int] = None, timeout_seconds: int = 20) -> str:
+    @function_tool(name_override="search_arxiv")
+    def search_arxiv(query: str, max_results: Optional[int] = None, timeout_seconds: int = 20) -> str:
         """Search arXiv papers with direct PDF URLs.
 
         Args:
@@ -612,19 +618,20 @@ def build_arxiv_search_tool(config: ToolsConfig) -> StructuredTool:
             max_results: Optional max number of results.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_arxiv(query=query, max_results=max_results, timeout_seconds=timeout_seconds)
+        try:
+            return helper.search_arxiv(query=query, max_results=max_results, timeout_seconds=timeout_seconds)
+        except Exception as exc:
+            return f"ERROR: arXiv search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_arxiv",
-        description=_search_arxiv.__doc__ or "Search arXiv papers with direct PDF URLs.",
-        func=_search_arxiv,
-    )
+    return search_arxiv
 
 
-def build_europe_pmc_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ScientificSearchTool(config)
+def get_europe_pmc_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_europe_pmc(
+    @function_tool(name_override="search_europe_pmc")
+    def search_europe_pmc(
         query: str,
         page: int = 1,
         page_size: int = 25,
@@ -638,24 +645,25 @@ def build_europe_pmc_search_tool(config: ToolsConfig) -> StructuredTool:
             page_size: Number of results per page (1-50).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_europe_pmc(
-            query=query,
-            page=page,
-            page_size=page_size,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_europe_pmc(
+                query=query,
+                page=page,
+                page_size=page_size,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Europe PMC search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_europe_pmc",
-        description=_search_europe_pmc.__doc__ or "Search Europe PMC papers with PDF URLs.",
-        func=_search_europe_pmc,
-    )
+    return search_europe_pmc
 
 
-def build_semantic_scholar_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ScientificSearchTool(config)
+def get_semantic_scholar_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_semantic_scholar(query: str, limit: int = 20, timeout_seconds: int = 20) -> str:
+    @function_tool(name_override="search_semantic_scholar")
+    def search_semantic_scholar(query: str, limit: int = 20, timeout_seconds: int = 20) -> str:
         """Search Semantic Scholar and return papers with open-access URLs.
 
         Args:
@@ -663,19 +671,20 @@ def build_semantic_scholar_search_tool(config: ToolsConfig) -> StructuredTool:
             limit: Number of results to request (1-20).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_semantic_scholar(query=query, limit=limit, timeout_seconds=timeout_seconds)
+        try:
+            return helper.search_semantic_scholar(query=query, limit=limit, timeout_seconds=timeout_seconds)
+        except Exception as exc:
+            return f"ERROR: Semantic Scholar search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_semantic_scholar",
-        description=_search_semantic_scholar.__doc__ or "Search Semantic Scholar papers with open-access URLs.",
-        func=_search_semantic_scholar,
-    )
+    return search_semantic_scholar
 
 
-def build_openalex_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ScientificSearchTool(config)
+def get_openalex_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_openalex(
+    @function_tool(name_override="search_openalex")
+    def search_openalex(
         query: str,
         page: int = 1,
         per_page: int = 10,
@@ -689,24 +698,25 @@ def build_openalex_search_tool(config: ToolsConfig) -> StructuredTool:
             per_page: Number of results per page.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_openalex(
-            query=query,
-            page=page,
-            per_page=per_page,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_openalex(
+                query=query,
+                page=page,
+                per_page=per_page,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: OpenAlex search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_openalex",
-        description=_search_openalex.__doc__ or "Search OpenAlex papers with open-access PDF URLs.",
-        func=_search_openalex,
-    )
+    return search_openalex
 
 
-def build_plos_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ScientificSearchTool(config)
+def get_plos_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_plos(query: str, rows: int = 20, start: int = 0, timeout_seconds: int = 20) -> str:
+    @function_tool(name_override="search_plos")
+    def search_plos(query: str, rows: int = 20, start: int = 0, timeout_seconds: int = 20) -> str:
         """Search PLOS and return direct full-text PDF URLs.
 
         Args:
@@ -715,10 +725,137 @@ def build_plos_search_tool(config: ToolsConfig) -> StructuredTool:
             start: Result offset.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_plos(query=query, rows=rows, start=start, timeout_seconds=timeout_seconds)
+        try:
+            return helper.search_plos(query=query, rows=rows, start=start, timeout_seconds=timeout_seconds)
+        except Exception as exc:
+            return f"ERROR: PLOS search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_plos",
-        description=_search_plos.__doc__ or "Search PLOS and return direct full-text PDF URLs.",
-        func=_search_plos,
-    )
+    return search_plos
+
+
+def get_google_patents_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="search_google_patents")
+    def search_google_patents(
+        query: str,
+        page: int = 1,
+        num: Optional[int] = None,
+        timeout_seconds: int = 20,
+    ) -> str:
+        """Search Google Patents via SerpAPI.
+
+        Args:
+            query: Search query string.
+            page: Page number (1+).
+            num: Number of results (default 10).
+            timeout_seconds: Request timeout in seconds.
+        """
+        try:
+            return helper.search_google_patents(
+                query=query,
+                page=page,
+                num=num,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google Patents search failed ({exc})"
+
+    return search_google_patents
+
+
+def get_google_scholar_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="search_google_scholar")
+    def search_google_scholar(
+        query: str,
+        num: Optional[int] = None,
+        include_patents: bool = False,
+        timeout_seconds: int = 20,
+    ) -> str:
+        """Search Google Scholar via SerpAPI.
+
+        Args:
+            query: Search query string.
+            num: Number of results (default 10).
+            include_patents: Whether to include patents in search.
+            timeout_seconds: Request timeout in seconds.
+        """
+        try:
+            return helper.search_google_scholar(
+                query=query,
+                num=num,
+                include_patents=include_patents,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google Scholar search failed ({exc})"
+
+    return search_google_scholar
+
+
+def get_youtube_video_search_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="search_youtube_videos")
+    def search_youtube_videos(
+        query: str,
+        limit: Optional[int] = None,
+        gl: str = "",
+        hl: str = "",
+        timeout_seconds: int = 20,
+    ) -> str:
+        """Search YouTube videos via SerpAPI.
+
+        Args:
+            query: Search query string.
+            limit: Max number of results.
+            gl: Country code (e.g. 'us').
+            hl: Language code (e.g. 'en').
+            timeout_seconds: Request timeout in seconds.
+        """
+        try:
+            return helper.search_youtube_videos(
+                query=query,
+                limit=limit,
+                gl=gl,
+                hl=hl,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: YouTube search failed ({exc})"
+
+    return search_youtube_videos
+
+
+def get_youtube_transcript_tool(helper: ScientificSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="get_youtube_video_transcript")
+    def get_youtube_video_transcript(
+        video_id: str,
+        language_code: str = "",
+        timeout_seconds: int = 30,
+    ) -> str:
+        """Get transcript of a YouTube video.
+
+        Args:
+            video_id: The ID of the YouTube video.
+            language_code: Optional language code.
+            timeout_seconds: Request timeout.
+        """
+        try:
+            return helper.get_youtube_video_transcript(
+                video_id=video_id,
+                language_code=language_code,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: YouTube transcript failed ({exc})"
+
+    return get_youtube_video_transcript

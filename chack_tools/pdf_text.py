@@ -5,11 +5,16 @@ from urllib.parse import urlparse
 from uuid import uuid4
 from typing import Optional
 
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
+
 import requests
-from langchain_core.tools import StructuredTool
 from pypdf import PdfReader
 
 from .config import ToolsConfig
+
 
 
 class PdfTextTool:
@@ -88,29 +93,27 @@ class PdfTextTool:
         )
 
 
-def build_pdf_text_tool(config: ToolsConfig) -> StructuredTool:
-    helper = PdfTextTool(config)
+def get_pdf_text_tool(helper: PdfTextTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _download_pdf_as_text(
+    @function_tool(name_override="download_pdf_as_text")
+    def download_pdf_as_text(
         url: str,
         max_chars: Optional[int] = None,
         timeout_seconds: int = 30,
     ) -> str:
         """Download a PDF URL and extract readable text.
 
-        Args:
-            url: PDF URL to download and parse.
-            max_chars: Deprecated, ignored (kept for compatibility).
-            timeout_seconds: Request timeout in seconds.
+        Use this to read papers or reports; then inspect the saved text file with exec + grep/sed.
         """
-        return helper.download_pdf_as_text(
-            url=url,
-            max_chars=max_chars,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.download_pdf_as_text(
+                url=url,
+                max_chars=max_chars,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: PDF extraction failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="download_pdf_as_text",
-        description=_download_pdf_as_text.__doc__ or "Download a PDF and extract text.",
-        func=_download_pdf_as_text,
-    )
+    return download_pdf_as_text

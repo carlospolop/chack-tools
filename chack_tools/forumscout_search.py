@@ -1,11 +1,16 @@
 import os
 from typing import Any
 
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
+
 import requests
-from langchain_core.tools import StructuredTool
 
 from .config import ToolsConfig
 from .serpapi_keys import is_serpapi_rate_limited, shuffled_serpapi_keys
+
 
 
 _FORUM_TIME_OPTIONS = {"", "hour", "day", "week", "month", "year"}
@@ -39,17 +44,13 @@ class ForumScoutTool:
         self.config = config
 
     def _api_key(self) -> str:
-        return self.config.forumscout_api_key or os.environ.get("FORUMSCOUT_API_KEY", "")
+        return os.environ.get("FORUMSCOUT_API_KEY", "")
 
     def _base_url(self) -> str:
-        return (
-            self.config.forumscout_base_url
-            or os.environ.get("FORUMSCOUT_BASE_URL", "")
-            or "https://forumscout.app"
-        ).rstrip("/")
+        return "https://forumscout.app"
 
     def _serpapi_key(self) -> str:
-        keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         return keys[0] if keys else ""
 
     def _request(
@@ -119,7 +120,7 @@ class ForumScoutTool:
         return "\n".join(lines)
 
     def _serpapi_request(self, params: dict[str, Any], timeout_seconds: int = 20) -> str:
-        api_keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        api_keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         if not api_keys:
             return "ERROR: SerpAPI key not configured."
         payload = None
@@ -315,50 +316,53 @@ class ForumScoutTool:
             {
                 "engine": "google_news",
                 "q": query,
-                "start": max(0, (page - 1) * 10),
+                "page": page,
             },
             timeout_seconds=timeout_seconds,
         )
 
 
-def build_forum_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_forum_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _forum_search(
+    @function_tool(name_override="forum_search")
+    def forum_search(
         query: str,
         time: str = "",
         country: str = "",
         page: int = 1,
         timeout_seconds: int = 20,
     ) -> str:
-        """Search forums via ForumScout.
+        """Generic forum search via ForumScout.
 
         Args:
             query: Search keyword.
-            time: One of '', hour, day, week, month, year.
-            country: Optional ISO 3166-1 alpha-2 code (e.g., us).
+            time: Time filter (hour, day, week, month, year, or empty).
+            country: ISO 3166-1 alpha-2 country code.
             page: Page number (1+).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.forum_search(
-            query=query,
-            time=time,
-            country=country,
-            page=page,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.forum_search(
+                query=query,
+                time=time,
+                country=country,
+                page=page,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout forum_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="forum_search",
-        description=_forum_search.__doc__ or "Search forums via ForumScout.",
-        func=_forum_search,
-    )
+    return forum_search
 
 
-def build_linkedin_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_linkedin_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _linkedin_search(
+    @function_tool(name_override="linkedin_search")
+    def linkedin_search(
         query: str,
         page: int = 1,
         sort_by: str = "date_posted",
@@ -369,27 +373,28 @@ def build_linkedin_search_tool(config: ToolsConfig) -> StructuredTool:
         Args:
             query: Search keyword.
             page: Page number (1+).
-            sort_by: One of date_posted, relevance.
+            sort_by: Sort order (date_posted, relevance).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.linkedin_search(
-            query=query,
-            page=page,
-            sort_by=sort_by,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.linkedin_search(
+                query=query,
+                page=page,
+                sort_by=sort_by,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout linkedin_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="linkedin_search",
-        description=_linkedin_search.__doc__ or "Search LinkedIn posts via ForumScout.",
-        func=_linkedin_search,
-    )
+    return linkedin_search
 
 
-def build_instagram_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_instagram_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _instagram_search(
+    @function_tool(name_override="instagram_search")
+    def instagram_search(
         query: str,
         page: int = 1,
         sort_by: str = "recent",
@@ -400,27 +405,28 @@ def build_instagram_search_tool(config: ToolsConfig) -> StructuredTool:
         Args:
             query: Search keyword.
             page: Page number (1+).
-            sort_by: One of recent, top.
+            sort_by: Sort order (recent, top).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.instagram_search(
-            query=query,
-            page=page,
-            sort_by=sort_by,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.instagram_search(
+                query=query,
+                page=page,
+                sort_by=sort_by,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout instagram_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="instagram_search",
-        description=_instagram_search.__doc__ or "Search Instagram posts via ForumScout.",
-        func=_instagram_search,
-    )
+    return instagram_search
 
 
-def build_reddit_posts_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_reddit_posts_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _reddit_posts_search(
+    @function_tool(name_override="reddit_posts_search")
+    def reddit_posts_search(
         query: str,
         page: int = 1,
         sort_by: str = "new",
@@ -431,27 +437,28 @@ def build_reddit_posts_search_tool(config: ToolsConfig) -> StructuredTool:
         Args:
             query: Search keyword.
             page: Page number (1+).
-            sort_by: One of hot, new, relevance, top.
+            sort_by: Sort order (hot, new, relevance, top).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.reddit_posts_search(
-            query=query,
-            page=page,
-            sort_by=sort_by,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.reddit_posts_search(
+                query=query,
+                page=page,
+                sort_by=sort_by,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout reddit_posts_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="reddit_posts_search",
-        description=_reddit_posts_search.__doc__ or "Search Reddit posts via ForumScout.",
-        func=_reddit_posts_search,
-    )
+    return reddit_posts_search
 
 
-def build_reddit_comments_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_reddit_comments_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _reddit_comments_search(
+    @function_tool(name_override="reddit_comments_search")
+    def reddit_comments_search(
         query: str,
         page: int = 1,
         sort_by: str = "created_utc",
@@ -462,27 +469,28 @@ def build_reddit_comments_search_tool(config: ToolsConfig) -> StructuredTool:
         Args:
             query: Search keyword.
             page: Page number (1+).
-            sort_by: One of created_utc, score.
+            sort_by: Sort order (created_utc, score).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.reddit_comments_search(
-            query=query,
-            page=page,
-            sort_by=sort_by,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.reddit_comments_search(
+                query=query,
+                page=page,
+                sort_by=sort_by,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout reddit_comments_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="reddit_comments_search",
-        description=_reddit_comments_search.__doc__ or "Search Reddit comments via ForumScout.",
-        func=_reddit_comments_search,
-    )
+    return reddit_comments_search
 
 
-def build_x_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = ForumScoutTool(config)
+def get_x_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _x_search(
+    @function_tool(name_override="x_search")
+    def x_search(
         query: str,
         page: int = 1,
         sort_by: str = "Latest",
@@ -493,18 +501,75 @@ def build_x_search_tool(config: ToolsConfig) -> StructuredTool:
         Args:
             query: Search keyword.
             page: Page number (1+).
-            sort_by: One of Latest, Top.
+            sort_by: Sort order (Latest, Top).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.x_search(
-            query=query,
-            page=page,
-            sort_by=sort_by,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.x_search(
+                query=query,
+                page=page,
+                sort_by=sort_by,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: ForumScout x_search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="x_search",
-        description=_x_search.__doc__ or "Search X (Twitter) posts via ForumScout.",
-        func=_x_search,
-    )
+    return x_search
+
+
+def get_google_forums_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="search_google_forums")
+    def search_google_forums(
+        query: str,
+        page: int = 1,
+        timeout_seconds: int = 20,
+    ) -> str:
+        """Search Google forums results via SerpAPI.
+
+        Args:
+            query: Search keyword.
+            page: Page number (1+).
+            timeout_seconds: Request timeout in seconds.
+        """
+        try:
+            return helper.search_google_forums(
+                query=query,
+                page=page,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google forums search failed ({exc})"
+
+    return search_google_forums
+
+
+def get_google_news_search_tool(helper: ForumScoutTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
+
+    @function_tool(name_override="search_google_news")
+    def search_google_news(
+        query: str,
+        page: int = 1,
+        timeout_seconds: int = 20,
+    ) -> str:
+        """Search Google News results via SerpAPI.
+
+        Args:
+            query: Search keyword.
+            page: Page number (1+).
+            timeout_seconds: Request timeout in seconds.
+        """
+        try:
+            return helper.search_google_news(
+                query=query,
+                page=page,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google News search failed ({exc})"
+
+    return search_google_news

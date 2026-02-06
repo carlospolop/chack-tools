@@ -4,10 +4,15 @@ import time
 import random
 from typing import Optional
 
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
+
 import requests
-from langchain_core.tools import StructuredTool, tool
 
 from .config import ToolsConfig
+
 
 
 _FRESHNESS_PATTERN = re.compile(r"^\\d{4}-\\d{2}-\\d{2}to\\d{4}-\\d{2}-\\d{2}$")
@@ -58,7 +63,7 @@ class BraveSearchTool:
         freshness: Optional[str] = None,
         timeout_seconds: int = 20,
     ) -> str:
-        api_key = self.config.brave_api_key or os.environ.get("BRAVE_API_KEY", "")
+        api_key = os.environ.get("BRAVE_API_KEY", "")
         if not api_key:
             return "Brave API key not configured."
         if not query.strip():
@@ -115,13 +120,15 @@ class BraveSearchTool:
             url = entry.get("url") or ""
             snippet = entry.get("description") or ""
             results.append(f"- {title}: {url}\n  {snippet}")
-        return "\n".join(results) if results else "No results."
+        return "\n".join(results)
 
 
-def build_brave_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = BraveSearchTool(config)
+def get_brave_search_tool(helper: BraveSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _brave_search(
+    @function_tool(name_override="brave_search")
+    def brave_search(
         query: str,
         count: Optional[int] = None,
         country: Optional[str] = None,
@@ -130,7 +137,10 @@ def build_brave_search_tool(config: ToolsConfig) -> StructuredTool:
         freshness: Optional[str] = None,
         timeout_seconds: int = 20,
     ) -> str:
-        """Search Brave Search API and return a short list of results.
+        """Search the web via Brave and return a short list of results.
+
+        Use this to verify facts, commands, API behavior, and any information that may have changed.
+        Prefer it for quick confirmation or a complementary source alongside Google/Bing.
 
         Args:
             query: Search query string.
@@ -141,18 +151,17 @@ def build_brave_search_tool(config: ToolsConfig) -> StructuredTool:
             freshness: Optional freshness filter (pd, pw, pm, py, or YYYY-MM-DDtoYYYY-MM-DD).
             timeout_seconds: Request timeout in seconds.
         """
-        return helper._brave_search_impl(
-            query=query,
-            count=count,
-            country=country,
-            search_lang=search_lang,
-            ui_lang=ui_lang,
-            freshness=freshness,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search(
+                query=query,
+                count=count,
+                country=country,
+                search_lang=search_lang,
+                ui_lang=ui_lang,
+                freshness=freshness,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Brave search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="brave_search",
-        description=_brave_search.__doc__ or "Search Brave Search API.",
-        func=_brave_search,
-    )
+    return brave_search

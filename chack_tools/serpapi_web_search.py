@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 from typing import Optional
 
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
+
 import requests
-from langchain_core.tools import StructuredTool
 
 from .config import ToolsConfig
+
 from .serpapi_keys import is_serpapi_rate_limited, shuffled_serpapi_keys
 
 
@@ -32,7 +38,7 @@ class SerpApiWebSearchTool:
         self.config = config
 
     def _api_key(self) -> str:
-        keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         return keys[0] if keys else ""
 
     def _max_results(self, requested: Optional[int] = None) -> int:
@@ -42,7 +48,7 @@ class SerpApiWebSearchTool:
         return _clamp(_coerce_int(requested, default_max), 1, 10)
 
     def _request_payload(self, params: dict, timeout_seconds: int = 20):
-        api_keys = shuffled_serpapi_keys(getattr(self.config, "serpapi_api_key", ""))
+        api_keys = shuffled_serpapi_keys(os.environ.get("SERPAPI_API_KEY", ""))
         if not api_keys:
             return "ERROR: SerpAPI key not configured."
         last_error = "ERROR: SerpAPI request failed"
@@ -275,10 +281,12 @@ class SerpApiWebSearchTool:
         return self._format_ai_mode("bing_copilot", query, payload)
 
 
-def build_google_web_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = SerpApiWebSearchTool(config)
+def get_google_web_search_tool(helper: SerpApiWebSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_google_web(
+    @function_tool(name_override="search_google_web")
+    def search_google_web(
         query: str,
         page: int = 1,
         num: Optional[int] = None,
@@ -286,30 +294,34 @@ def build_google_web_search_tool(config: ToolsConfig) -> StructuredTool:
     ) -> str:
         """Search Google web results via SerpAPI.
 
+        Use when accuracy and recency matter (docs, error messages, product info).
+        Prefer this as a primary web source and cross-check with Bing/Brave if needed.
+
         Args:
             query: Search query string.
             page: Result page (1+).
             num: Number of results (1-10). Defaults to config value.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_google_web(
-            query=query,
-            page=page,
-            num=num,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_google_web(
+                query=query,
+                page=page,
+                num=num,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google web search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_google_web",
-        description=_search_google_web.__doc__ or "Search Google web results via SerpAPI.",
-        func=_search_google_web,
-    )
+    return search_google_web
 
 
-def build_bing_web_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = SerpApiWebSearchTool(config)
+def get_bing_web_search_tool(helper: SerpApiWebSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_bing_web(
+    @function_tool(name_override="search_bing_web")
+    def search_bing_web(
         query: str,
         page: int = 1,
         count: Optional[int] = None,
@@ -317,71 +329,76 @@ def build_bing_web_search_tool(config: ToolsConfig) -> StructuredTool:
     ) -> str:
         """Search Bing web results via SerpAPI.
 
+        Use as a second source to cross-check findings and reduce search-engine bias.
+
         Args:
             query: Search query string.
             page: Result page (1+).
             count: Number of results (1-10). Defaults to config value.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_bing_web(
-            query=query,
-            page=page,
-            count=count,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_bing_web(
+                query=query,
+                page=page,
+                count=count,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Bing web search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_bing_web",
-        description=_search_bing_web.__doc__ or "Search Bing web results via SerpAPI.",
-        func=_search_bing_web,
-    )
+    return search_bing_web
 
 
-def build_google_ai_mode_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = SerpApiWebSearchTool(config)
+def get_google_ai_mode_tool(helper: SerpApiWebSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_google_ai_mode(
+    @function_tool(name_override="search_google_ai_mode")
+    def search_google_ai_mode(
         query: str,
         timeout_seconds: int = 45,
     ) -> str:
-        """Search Google AI Mode via SerpAPI and return summary + references.
+        """Search Google in AI mode via SerpAPI.
 
         Args:
             query: Search query string.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_google_ai_mode(
-            query=query,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_google_ai_mode(
+                query=query,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Google AI mode search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_google_ai_mode",
-        description=_search_google_ai_mode.__doc__ or "Search Google AI Mode via SerpAPI.",
-        func=_search_google_ai_mode,
-    )
+    return search_google_ai_mode
 
 
-def build_bing_copilot_search_tool(config: ToolsConfig) -> StructuredTool:
-    helper = SerpApiWebSearchTool(config)
+def get_bing_copilot_tool(helper: SerpApiWebSearchTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _search_bing_copilot(
+    @function_tool(name_override="search_bing_copilot")
+    def search_bing_copilot(
         query: str,
         timeout_seconds: int = 100,
     ) -> str:
-        """Search Bing Copilot via SerpAPI and return summary + references.
+        """Search Bing Copilot in AI mode via SerpAPI.
 
         Args:
             query: Search query string.
             timeout_seconds: Request timeout in seconds.
         """
-        return helper.search_bing_copilot(
-            query=query,
-            timeout_seconds=timeout_seconds,
-        )
+        try:
+            return helper.search_bing_copilot(
+                query=query,
+                timeout_seconds=timeout_seconds,
+            )
+        except Exception as exc:
+            return f"ERROR: Bing Copilot search failed ({exc})"
 
-    return StructuredTool.from_function(
-        name="search_bing_copilot",
-        description=_search_bing_copilot.__doc__ or "Search Bing Copilot via SerpAPI.",
-        func=_search_bing_copilot,
-    )
+    return search_bing_copilot
+
+

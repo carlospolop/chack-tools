@@ -1,8 +1,12 @@
 from typing import Optional
 
-from langchain_core.tools import StructuredTool
+try:
+    from agents import function_tool
+except ImportError:
+    function_tool = None
 
 from .config import ToolsConfig
+
 from .task_list_state import STORE, current_run_label, current_session_id
 
 
@@ -49,10 +53,12 @@ class TaskListTool:
         return f"{result}\n\n{board}"
 
 
-def build_task_list_tool(config: ToolsConfig) -> StructuredTool:
-    helper = TaskListTool(config)
+def get_task_list_tool(helper: TaskListTool):
+    if function_tool is None:
+        raise RuntimeError("OpenAI Agents SDK is not available.")
 
-    def _task_list(
+    @function_tool(name_override="task_list")
+    def task_list(
         action: str,
         task_id: Optional[int] = None,
         text: str = "",
@@ -91,8 +97,4 @@ def build_task_list_tool(config: ToolsConfig) -> StructuredTool:
             notes=notes,
         )
 
-    return StructuredTool.from_function(
-        name="task_list",
-        description=_task_list.__doc__ or "Manage task list progress.",
-        func=_task_list,
-    )
+    return task_list

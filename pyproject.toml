@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chack-tools"
-version = "0.1.0"
-description = "Reusable tool library for Chack-compatible agents"
+name = "chack-agent"
+version = "0.2.0"
+description = "Full Chack agent runtime + tools"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -14,17 +14,20 @@ authors = [
 ]
 dependencies = [
   "requests>=2.31.0",
-  "langchain-core>=0.3.0",
   "pypdf>=4.0.0",
+  "openai-agents>=0.7.0",
 ]
 
 [project.optional-dependencies]
 openai_agents = [
-  "openai-agents>=0.2.0",
+  "openai-agents>=0.7.0",
 ]
 
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.package-data]
+chack_agent = ["config/*.yaml"]
+
 [tool.setuptools.packages.find]
-include = ["chack_tools*"]
+include = ["chack_agent*", "chack_tools*"]
