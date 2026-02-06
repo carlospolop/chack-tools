@@ -2,16 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from chack_agent import (
-    AgentConfig,
-    ChackConfig,
-    CredentialsConfig,
-    LoggingConfig,
-    ModelConfig,
-    SessionConfig,
-    ToolsConfig as AgentToolsConfig,
-)
-
 from .config import ToolsConfig as BaseToolsConfig
 
 
@@ -31,6 +21,15 @@ def build_subagent_config(
     system_prompt: str,
     overrides: Mapping[str, Any] | None = None,
 ) -> ChackConfig:
+    from chack_agent import (
+        AgentConfig,
+        ChackConfig,
+        CredentialsConfig,
+        LoggingConfig,
+        ModelConfig,
+        SessionConfig,
+        ToolsConfig as AgentToolsConfig,
+    )
     overrides = dict(overrides or {})
     prompt = str(overrides.get("system_prompt") or system_prompt).strip() or system_prompt
 
