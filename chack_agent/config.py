@@ -34,9 +34,11 @@ class ModelConfig:
     social_network: str = ""
     scientific: str = ""
     websearcher: str = ""
+    tester: str = ""
     social_network_max_turns: int = 30
     scientific_max_turns: int = 30
     websearcher_max_turns: int = 30
+    tester_max_turns: int = 30
 
 
 @dataclass

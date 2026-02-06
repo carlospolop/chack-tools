@@ -346,6 +346,10 @@ def build_executor(
             toolset_kwargs["websearcher_model"] = config.model.websearcher
         if "websearcher_max_turns" in init_params:
             toolset_kwargs["websearcher_max_turns"] = config.model.websearcher_max_turns
+        if "tester_model" in init_params:
+            toolset_kwargs["tester_model"] = config.model.tester
+        if "tester_max_turns" in init_params:
+            toolset_kwargs["tester_max_turns"] = config.model.tester_max_turns
         toolset = AgentsToolset(config.tools, **toolset_kwargs)
         tools = toolset.tools
         if tools_append:
